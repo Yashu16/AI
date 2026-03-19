@@ -2,13 +2,15 @@ import os
 
 from google import genai
 from google.genai import types
-from googlesearch import search
+from tavily import TavilyClient
 
+tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 def websearch(query:str) -> str:
     results = []
-    for url in search(query, num_results=5):
-        results.append(url)
+    response = tavily.search(query=query, num_results=5)
+    for r in response["results"]:
+        results.append(f"Title: {r['title']}\nURL: {r['url']}\nSummary: {r['content']}\n")
     return "\n".join(results)
 
 search_tool = types.Tool(
@@ -52,7 +54,7 @@ def main() -> None:
 			conversation_history.append(types.Content(role="user", parts=[types.Part(text=user_input)]))
 			while True:
 				response = client.models.generate_content(
-					model="gemini-2.5-flash-lite",
+					model="gemini-3.1-flash-lite",
 					config = types.GenerateContentConfig(system_instruction= system_prompt, tools = [search_tool]),
 					contents=conversation_history,
 				)
