@@ -42,21 +42,46 @@ def main() -> None:
 	print("Chatbot ready! Type 'quit' to exit.\n")
  
 	try:
-		system_prompt = "You are a helpful research assistant that gives concise, structured answers."
+		system_prompt = f"""You are a helpful research assistant. When asked about current events or recent information,
+		use the websearch tool to find relevant data. Always provide concise and accurate answers based on the information you have or can retrieve."""
 		while True:
 			user_input = input("You: ")
 			if user_input.lower() == "quit":
 				print("Exiting chat. Goodbye!")
 				break
 			conversation_history.append(types.Content(role="user", parts=[types.Part(text=user_input)]))
-			response = client.models.generate_content(
-				model="gemini-2.5-flash-lite",
-				config = types.GenerateContentConfig(system_instruction= system_prompt),
-				contents=conversation_history,
-			)
-			assistant_reply = response.text
-			conversation_history.append(types.Content(role="model", parts=[types.Part(text=assistant_reply)]))
-			print(f"Agent: {assistant_reply}\n")
+			while True:
+				response = client.models.generate_content(
+					model="gemini-2.5-flash-lite",
+					config = types.GenerateContentConfig(system_instruction= system_prompt, tools = [search_tool]),
+					contents=conversation_history,
+				)
+				if not response.candidates:
+					print("No response from model. Ending conversation.")
+					break
+				candidate = response.candidates[0]
+				if candidate.content.parts[0].function_call:
+					function_call = candidate.content.parts[0].function_call
+					print(f"\nSearching: {function_call.args['query']}\n")
+					search_results = websearch(function_call.args["query"])
+					conversation_history.append(candidate.content)
+					conversation_history.append(types.Content(
+						role="user",
+						parts=[
+							types.Part(
+            					function_response=types.FunctionResponse(
+									name="web_search",
+									response={"result": search_results},
+								)
+							)
+						],
+					))
+				else:
+					final_answer = candidate.content.parts[0].text
+					conversation_history.append(types.Content(role="model", parts=[types.Part(text=final_answer)]))
+					print(f"Assistant: {final_answer}\n")
+					break
+				
 	except Exception as exc:
 		message = str(exc)
 		if "RESOURCE_EXHAUSTED" in message or "quota" in message.lower() or "429" in message:
