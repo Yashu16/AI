@@ -6,18 +6,24 @@ from tavily import TavilyClient
 
 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
+# google search didn't work, so using tavily instead, which is a wrapper around google search and other search engines.
+# It also provides a nice interface for getting the results in a structured format.
+# LLM never runs this, only calls the tool, which then runs this function and returns the results to the LLM.
+
 def websearch(query:str) -> str:
     results = []
-    response = tavily.search(query=query, num_results=5)
+    response = tavily.search(query=query, num_results=5) # num_results is the number of search results to return
     for r in response["results"]:
         results.append(f"Source: {r['title']} ({r['url']})\n{r['content']}\n---")
     return "\n".join(results)
 
+# Gemini's answer are only as good as what Tavily fetches.
+
 search_tool = types.Tool(
     function_declarations= [
 		types.FunctionDeclaration(
-			name="websearch",
-			description="Search the web for relevant information.",
+			name="websearch", # python function name, used to call the tool from the LLM response
+			description="Search the web for relevant information.", # uses this to decide when to call the tool, so make it descriptive and relevant to the task at hand.
 			parameters= types.Schema(
        type = types.Type.OBJECT,
 	   properties = {
