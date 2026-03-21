@@ -1,4 +1,5 @@
 import os
+import json
 
 from google import genai
 from google.genai import types
@@ -50,8 +51,17 @@ def main() -> None:
 	print("Chatbot ready! Type 'quit' to exit.\n")
  
 	try:
-		system_prompt = f"""You are a helpful research assistant. When asked about current events or recent information,
-		use the websearch tool to find relevant data. Always provide concise and accurate answers based on the information you have or can retrieve."""
+		system_prompt = f"""You are a helpful research assistant. When asked about any topic,
+		use the websearch tool to find current information.
+  Always respond in this exact JSON format and nothing else:
+  {{
+	  "summary" : "2-3 sentence overview of the topic",
+	  "key_facts": ["fact 1", "fact 2", "fact 3"],
+	  "sources": ["domain1.com", "domain2.com"],
+	  "confidence": "high | medium | low"
+  }}
+  Do not include any text outside the JSON. No preamble, no explanations!
+  """
 		while True:
 			user_input = input("You: ")
 			if user_input.lower() == "quit":
@@ -67,9 +77,9 @@ def main() -> None:
 				if not response.candidates:
 					print("No response from model. Ending conversation.")
 					break
-				candidate = response.candidates[0]
-				if candidate.content.parts[0].function_call:
-					function_call = candidate.content.parts[0].function_call
+				candidate = response.candidates[0] or ""
+				if candidate.content.parts[0].function_call or "": 
+					function_call = candidate.content.parts[0].function_call 
 					print(f"\nSearching: {function_call.args['query']}\n")
 					search_results = websearch(function_call.args["query"])
 					conversation_history.append(candidate.content)
@@ -85,11 +95,30 @@ def main() -> None:
 						],
 					))
 				else:
-					final_answer = candidate.content.parts[0].text
+					final_answer = candidate.content.parts[0].text or ""
 					conversation_history.append(types.Content(role="model", parts=[types.Part(text=final_answer)]))
-					print(f"Assistant: {final_answer}\n")
+					cleaned = final_answer.strip().strip("```json").strip("```")
+    # We cleaned final answer to ensure it's just the JSON, in case the model included any formatting. 
+    # This is common when models try to output code or structured data.
+    
+					try:
+						parsed_answer = json.loads(cleaned)
+						print("\n --- Research Results ---")
+						print(f"\nSummary: {parsed_answer['summary']}")
+						print(f"\nKey Facts:")
+						for fact in parsed_answer["key_facts"]:
+							print(f" - {fact}")
+						print(f"\nSources: {', '.join(parsed_answer['sources'])}")
+						print(f"Confidence: {parsed_answer['confidence']}\n")
+					except json.JSONDecodeError:
+						print("Failed to parse model response as JSON. Here's the raw response:")
+						print(f"\nAgent: {final_answer}\n")
 					break
-				
+ 
+	# The above try - except block is crucial because it ensures that if the model's 
+    # response isn't perfectly formatted JSON (which can happen), we still handle it gracefully and 
+    # provide feedback to the user, rather than crashing the program.
+    
 	except Exception as exc:
 		message = str(exc)
 		if "RESOURCE_EXHAUSTED" in message or "quota" in message.lower() or "429" in message:
