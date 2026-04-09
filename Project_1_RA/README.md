@@ -1,11 +1,21 @@
-# Project 1 RA
+# Project 1
+# Research Assistant
 
-A simple research assistant CLI using Gemini and Google Search.
+An AI-Powered research agent that searches the web and returns structured summaries on any topic.
 
-## Prerequisites
+# what it does:
+
+- User asks a question
+- Agent uses a Tavily to find relevant information on the web
+- Agent summarizes the information and provides a structured response to the user using gemini
+- Returns structured output: summary, key facts, sources and confidence score
+
+## Tech stack
 
 - Python 3.11+
-- A Gemini API key
+- Tavily API key
+- A Gemini API key 
+- google-genai, tavily-python, python-dotenv
 
 ## Setup (Windows PowerShell)
 
@@ -19,17 +29,17 @@ python -m pip install -r .\Project_1_RA\requirements.txt
 
 ## Configure API Key
 
-Set your Gemini API key in the current terminal session:
+Create a `.env` file in the `Project_1_RA` directory with the following content:
 
-```powershell
-$env:GEMINI_API_KEY="your_api_key_here"
+```TAVILY_API_KEY=your_api_key_here
+    GEMINI_API_KEY=your_api_key_here
 ```
 
-## Run
-
-```powershell
-python .\Project_1_RA\agent.py
-```
+## How to Run
+1. clone the repo and navigate to the `Project_1_RA` directory
+2. Install the dependencies and set up the API keys as described above
+3. Run the agent with `python agent.py`
+4. Type your research question and press Enter
 
 Type `quit` to exit.
 
@@ -37,6 +47,9 @@ Type `quit` to exit.
 
 - Use `python -m pip` to ensure packages install into the active environment.
 - The `.venv` folder is ignored by Git and should not be committed.
+
+
+- Below is explanations of the code and the reasoning behind it, as well as some insights into how the agent works and how we structured the code.
 
  ## Explanations
  #### Search tool does:
