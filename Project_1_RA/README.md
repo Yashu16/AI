@@ -1,9 +1,8 @@
-# Project 1
 # Research Assistant
 
 An AI-Powered research agent that searches the web and returns structured summaries on any topic.
 
-# what it does:
+## what it does:
 
 - User asks a question
 - Agent uses a Tavily to find relevant information on the web
@@ -17,7 +16,7 @@ An AI-Powered research agent that searches the web and returns structured summar
 - A Gemini API key 
 - google-genai, tavily-python, python-dotenv
 
-## Setup (Windows PowerShell)
+### Setup (Windows PowerShell)
 
 ```powershell
 cd "c:\Yaswanth files\AI"
@@ -27,13 +26,12 @@ python -m pip install --upgrade pip
 python -m pip install -r .\Project_1_RA\requirements.txt
 ```
 
-## Configure API Key
+### Configure API Key
 
 Create a `.env` file in the `Project_1_RA` directory with the following content:
 
-```TAVILY_API_KEY=your_api_key_here
-    GEMINI_API_KEY=your_api_key_here
-```
+TAVILY_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_api_key_here
 
 ## How to Run
 1. clone the repo and navigate to the `Project_1_RA` directory
@@ -42,6 +40,31 @@ Create a `.env` file in the `Project_1_RA` directory with the following content:
 4. Type your research question and press Enter
 
 Type `quit` to exit.
+
+## How it works 
+- excerpt from my explanation from below:
+Uses a ReAct (Reasoning + Acting) loop - gemini reasons about the query, decides to call web search, gets results, reasons again, and finally generates a structured answer.
+
+## Example output
+```
+    You: I want to know more about LLM in financial markets
+
+    Searching: LLM in financial markets
+
+
+    --- Research Results ---
+
+    Summary: Large Language Models (LLMs) are increasingly being integrated into financial markets to perform complex analyses and improve decision-making. Applications include stock price forecasting, sentiment analysis, portfolio management, and algorithmic trading. LLMs can process unstructured textual data alongside structured financial indicators to generate market signals and enhance prediction models.
+
+    Key Facts:
+    - LLMs are used in finance for tasks like stock forecasting, sentiment analysis, and algorithmic trading.
+    - Research shows that LLMs can outperform traditional methods in predicting stock market returns.
+    - LLMs can be integrated with techniques like Retrieval-Augmented Generation (RAG) to improve accuracy, though this may increase costs and latency.
+    - GPT-5 (as of August 2025) leads in financial reasoning tasks with 88.23% accuracy.
+
+    Sources: reddit.com, aimultiple.com, ncbi.nlm.nih.gov, arxiv.org, llm-guide.com
+    Confidence: high
+```
 
 ## Notes
 

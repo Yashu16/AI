@@ -79,8 +79,8 @@ def main() -> None:
 				if not response.candidates:
 					print("No response from model. Ending conversation.")
 					break
-				candidate = response.candidates[0] or ""
-				if candidate.content.parts[0].function_call or "": 
+				candidate = response.candidates[0]
+				if candidate.content.parts[0].function_call: 
 					function_call = candidate.content.parts[0].function_call 
 					print(f"\nSearching: {function_call.args['query']}\n")
 					search_results = websearch(function_call.args["query"])
@@ -99,7 +99,10 @@ def main() -> None:
 				else:
 					final_answer = candidate.content.parts[0].text or ""
 					conversation_history.append(types.Content(role="model", parts=[types.Part(text=final_answer)]))
-					cleaned = final_answer.strip().strip("```json").strip("```")
+					cleaned = final_answer.strip()
+					if cleaned.startswith("```"):
+						cleaned = cleaned.split("\n", 1)[1] 
+						cleaned = cleaned.rsplit("```", 1)[0].strip()
     # We cleaned final answer to ensure it's just the JSON, in case the model included any formatting. 
     # This is common when models try to output code or structured data.
     
