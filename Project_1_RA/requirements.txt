@@ -1,2 +1,3 @@
 google-genai
-googlesearch-python
+python-dotenv
+tavily-python

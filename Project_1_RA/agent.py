@@ -4,6 +4,8 @@ import json
 from google import genai
 from google.genai import types
 from tavily import TavilyClient
+from dotenv import load_dotenv
+load_dotenv()
 
 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
@@ -70,7 +72,7 @@ def main() -> None:
 			conversation_history.append(types.Content(role="user", parts=[types.Part(text=user_input)]))
 			while True:
 				response = client.models.generate_content(
-					model="gemini-2.5-flash",
+					model="gemini-2.5-flash-lite",
 					config = types.GenerateContentConfig(system_instruction= system_prompt, tools = [search_tool]),
 					contents=conversation_history,
 				)
