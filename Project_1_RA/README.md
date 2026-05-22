@@ -16,7 +16,17 @@ An AI-Powered research agent that searches the web and returns structured summar
 - A Gemini API key 
 - google-genai, tavily-python, python-dotenv
 
-### Setup (Windows PowerShell)
+### Current PowerShell setup
+(added a new venv1 to avoid conflicts with old setup)
+
+```powershell
+cd "p:\AI\Project_1_RA"
+.\.venv1\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r .\requirements.txt
+```
+
+### Old Setup (Windows PowerShell)
 
 ```powershell
 cd "c:\Yaswanth files\AI"
@@ -70,6 +80,20 @@ Uses a ReAct (Reasoning + Acting) loop - gemini reasons about the query, decides
 
 - Use `python -m pip` to ensure packages install into the active environment.
 - The `.venv` folder is ignored by Git and should not be committed.
+
+## What changed in the newer setup
+
+### What changed now
+
+- The Gemini SDK now returns `candidate.content.parts` as a list, not a single part.
+- A candidate can contain multiple parts, so the code now scans the list to find the first part with a `function_call` or text.
+- The tool response name was also aligned to `websearch`, so Gemini can match the returned tool result to the declared tool.
+
+### Why we had to change it
+
+- The old code was too strict about the response shape and crashed when `parts` was a list.
+- The new code is more defensive and works whether Gemini returns a tool call part, a text part, or multiple parts in the same candidate.
+- This makes the agent less likely to break when the SDK changes how it structures responses.
 
 
 - Below is explanations of the code and the reasoning behind it, as well as some insights into how the agent works and how we structured the code.

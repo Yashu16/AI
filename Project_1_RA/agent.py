@@ -20,6 +20,21 @@ def websearch(query:str) -> str:
         results.append(f"Source: {r['title']} ({r['url']})\n{r['content']}\n---")
     return "\n".join(results)
 
+
+def get_first_function_call(parts):
+	for part in parts:
+		if getattr(part, "function_call", None):
+			return part.function_call
+	return None
+
+
+def get_first_text(parts):
+	for part in parts:
+		text = getattr(part, "text", None)
+		if text:
+			return text
+	return ""
+
 # Gemini's answer are only as good as what Tavily fetches.
 
 search_tool = types.Tool(
@@ -80,8 +95,8 @@ def main() -> None:
 					print("No response from model. Ending conversation.")
 					break
 				candidate = response.candidates[0]
-				if candidate.content.parts[0].function_call: 
-					function_call = candidate.content.parts[0].function_call 
+				function_call = get_first_function_call(candidate.content.parts)
+				if function_call:
 					print(f"\nSearching: {function_call.args['query']}\n")
 					search_results = websearch(function_call.args["query"])
 					conversation_history.append(candidate.content)
@@ -90,14 +105,14 @@ def main() -> None:
 						parts=[
 							types.Part(
             					function_response=types.FunctionResponse(
-									name="web_search",
+									name="websearch",
 									response={"result": search_results},
 								)
 							)
 						],
 					))
 				else:
-					final_answer = candidate.content.parts[0].text or ""
+					final_answer = get_first_text(candidate.content.parts)
 					conversation_history.append(types.Content(role="model", parts=[types.Part(text=final_answer)]))
 					cleaned = final_answer.strip()
 					if cleaned.startswith("```"):
