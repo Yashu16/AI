@@ -23,7 +23,7 @@ An AI-Powered research agent that searches the web and returns structured summar
 cd "p:\AI\Project_1_RA"
 .\.venv1\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r .\requirements.txt
+python -m pip install -r .\research-assistant-requirements.txt
 ```
 
 ### Old Setup (Windows PowerShell)
