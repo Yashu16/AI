@@ -38,4 +38,3 @@ Design notes
 Credit
 - Inspired by Andrej Karpathy's "micrograd" and the "Neural Networks: Zero to Hero" series.
 
-If you want, I can also extract the `Value` implementation into a module and add unit tests or expand the demo to visualize gradients over time.
