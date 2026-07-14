@@ -24,3 +24,7 @@ storage-intelligence/
 ├── requirements.txt
 ├── README.md
 └── .gitignore
+
+**EDA planning**
+How did I choose the features? 
+- Since there are about 151 columns, it's not possible to go through every one of them manually without feeling overwhelmed. So, I asked Claude to web search and give me few important columns to start with. It gave me columns separated by different buckets based on the information that I previously gave it - that I will perform survival analysis and uplift modeling. 
