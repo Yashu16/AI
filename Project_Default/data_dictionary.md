@@ -2,18 +2,23 @@
 
 ### Bucket 1 (Target variable)
 **loan_status**:  
-Fully Paid                  
-Current                                                
-Charged Off                                            
-Late (31-120 days)                                     
-In Grace Period                                        
-Late (16-30 days)                                      
-Does not meet the credit policy. Status:Fully Paid - but old policy
-Does not meet the credit policy. Status:Charged Off - but old policy
-Default                                                
+Fully Paid            - 0     
+Current               - IGNORE                      
+Charged Off           - 1                                 
+Late (31-120 days)    - 1                       
+In Grace Period       - 0                         
+Late (16-30 days)     - 0                             
+Does not meet the credit policy. Status:Fully Paid - but old policy - 0
+Does not meet the credit policy. Status:Charged Off - but old policy - 1
+Default                - 1
+
+1 - Default; 0 - Did not default 
+
+**Reasoning for my decisions**
+- From a business perspective, borrowers in grace period and late period(only 16-30) should not be considered as defaulted. For the initial classifier analysis, we will mark them as not defaulted, but their value is delivered for survival analysis. Borrowers who are late than 30 days are heading towards default, but we don't know the outcome for sure. So, we will right-censor it. For initial classifier analysis, we will exclude rows with that label, and use that in our survival analysis. 
 
 ### Bucket 2 (Time columns) (For survival analysis)
-**issue_d** - Month/year the loan was funded —  "tenant moved in" date
+**issue_d** - Month/year the loan was funded 
 **last_pymnt_d** - Date of last payment made —  "last contact" date
 **next_pymnt_d** - Scheduled next payment date
 **earliest_cr_line** - When borrower's first credit line was opened (credit age)
