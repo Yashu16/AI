@@ -45,5 +45,11 @@ A rough mental model:
 
 - Next as for metrics: Choosing a balance between recall and precision is important, so ROC-AUC curve is our best metric here especially because tuning the decision threshold becomes important later on for collections decision. Another metric we can use is F1-score. 
 
+**preprocessing**
+What columns to drop - and why? 
+I will go through each column to make sure we are not missing out on any. 
+
+Next, we shall handle missing values for existing columns. And then we can feature engineer from them. 
+
 **Feature engineering**
 Time to engineer new features from existing ones. 
