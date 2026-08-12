@@ -60,6 +60,12 @@ mths_since_recent_revol_delinq(67.25), next_pymnt_d(59.51), mths_since_last_deli
 
 I can't drop these columns just simply because they have missing values, as they are important for our analysis. Need to check if I can flag them for future important information...
 
+Update: went through each individually - only mths_since_last_delinq (Bucket 3) is worth keeping (flag + sentinel, see Step 3 imputation). The other four (mths_since_recent_revol_delinq, next_pymnt_d, il_util, mths_since_rcnt_il) don't carry unique signal beyond what's already kept - decision: drop.
+
+Note on next_pymnt_d specifically: dropped for a different reason than plain high-missingness. It's structurally near-always null for closed loans (no "next" payment once a loan has ended), so within our classifier subset (already-concluded loans only) its missingness isn't informative - and the rare non-null values would leak information about loan status. Not a bucket-membership decision, a structural one.
+
+Correction: after building clf_df and re-checking remaining nulls post-Step 3, found all_util (58.8% missing in clf_df) had been mistakenly left out of this drop list and almost got swept into the negligible-missing "row drop" step instead - which would have dropped ~59% of rows. Added all_util to this 40-70% band's drop list. Lesson: always double check a column's actual missing count before bucketing it as "negligible."
+
 Columns with missing value at 38.3%:
 open_acc_6m, inq_last_12m, total_cu_tl, open_il_24m, max_bal_bc, open_act_il, open_il_12m, open_rv_24m, total_bal_il, inq_fi, open_rv_12m
 
@@ -103,6 +109,34 @@ title, id, url, policy_code, zip_code, pymnt_plan, initial_list_status, disburse
 Decision: drop all of these regardless of their negligible missing %.
 
 Note: date fields (last_pymnt_d, last_credit_pull_d, earliest_cr_line, issue_d) are fine and useful (Bucket 2) - just need datetime parsing, not dropping. Payment-behavior fields (collection_recovery_fee, recoveries, total_rec_late_fee, total_pymnt, total_rec_prncp, total_rec_int, out_prncp, last_pymnt_amnt, last_fico_range_low/high) are legitimate (Bucket 3) but carry leakage risk since several are only fully known after the loan concludes - re-check at feature selection time (see leakage note above, line 39 in data_dictionary.md).
+
+**Reason 3**: Leakage audit - post-outcome payment/credit fields
+Before feature engineering, went through every Bucket 3 payment field to decide which are known only after a loan concludes (leakage for a classifier predicting outcome) vs safe to use.
+
+Leaky - exclude from classifier features:
+- recoveries, collection_recovery_fee: only populated once a loan has already defaulted and gone to collections. Practically encodes the target.
+- total_pymnt, total_pymnt_inv, total_rec_prncp, total_rec_int, total_rec_late_fee, out_prncp, out_prncp_inv: cumulative totals over the entire loan life - directly reflect how the loan ended (e.g. out_prncp = 0 for Fully Paid, nonzero for Charged Off).
+- last_pymnt_amnt, last_pymnt_d: summarize the final payment, fundamentally different in character for a defaulted vs completed loan.
+- last_fico_range_low, last_fico_range_high, last_credit_pull_d: FICO/credit pull *after* the loan concluded, reflects post-outcome credit state. fico_range_low/high (at-origination FICO, Bucket 4) is the safe substitute.
+
+Safe to keep - known at/near origination or represent ongoing behavior signal without directly encoding the terminal outcome:
+- installment, delinq_2yrs, mths_since_last_delinq: origination-time or slow-moving borrower behavior, not outcome summaries.
+
+These leaky columns are not dropped from clf_df outright (may be useful later, e.g. survival/uplift analysis), but are excluded from the feature set used to train the initial classifier.
+
+Correction: the first pass was driven only by the "remaining nulls after Step 3" list, which misses zero-null columns. Did a full pass over all 84 remaining feature-candidate columns (not just the ones with nulls) and found:
+
+Additional leaky columns (zero-null, missed by the nulls-only pass):
+- hardship_flag: whether a hardship plan was ever activated - a mid-loan event, often granted when a borrower is already struggling. Leaky, exclude.
+- debt_settlement_flag: settling for less than owed is itself close to a default-adjacent event. Leaky, exclude.
+- funded_amnt_inv: amount funded by investors - nearly always equals loan_amnt/funded_amnt, any gap could reflect investor sentiment during funding. Low risk but redundant - use loan_amnt instead.
+
+Borderline - bureau-pull-time snapshots, believed safe (should be at/near origination per LC's docs) but not yet empirically verified:
+chargeoff_within_12_mths, collections_12_mths_ex_med, acc_now_delinq, delinq_amnt, total_rev_hi_lim, tot_hi_cred_lim, tot_cur_bal, total_bal_ex_mort, total_bc_limit, total_il_high_credit_limit, avg_cur_bal, bc_open_to_buy, bc_util, percent_bc_gt_75, pct_tl_nvr_dlq, num_accts_ever_120_pd, num_actv_bc_tl, num_actv_rev_tl, num_bc_sats, num_bc_tl, num_il_tl, num_op_rev_tl, num_rev_accts, num_rev_tl_bal_gt_0, num_sats, num_tl_30dpd, num_tl_90g_dpd_24m, num_tl_op_past_12m, mo_sin_old_rev_tl_op, mo_sin_rcnt_rev_tl_op, mo_sin_rcnt_tl, mort_acc, mths_since_recent_bc, mths_since_recent_inq, acc_open_past_24mths
+
+Decision: run an empirical check (mean/median by target class) on this borderline group before finalizing the classifier feature set - see 01_eda.ipynb leakage-check cell. A column that looks suspiciously different across target=0 vs target=1 in a way that doesn't make domain sense warrants a closer look before being trusted as safe.
+
+Lesson: missingness-driven review and leakage review are different passes - a column can be 0% missing and still leak the outcome. A full pass must cover every remaining column, not just ones that showed up from an earlier missing-values check.
 
 Next, we shall handle missing values for existing columns. And then we can feature engineer from them. 
 
