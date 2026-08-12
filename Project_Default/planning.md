@@ -136,6 +136,19 @@ chargeoff_within_12_mths, collections_12_mths_ex_med, acc_now_delinq, delinq_amn
 
 Decision: run an empirical check (mean/median by target class) on this borderline group before finalizing the classifier feature set - see 01_eda.ipynb leakage-check cell. A column that looks suspiciously different across target=0 vs target=1 in a way that doesn't make domain sense warrants a closer look before being trusted as safe.
 
+Result: ran the check. All 34 borderline columns showed target_1/target_0 ratios roughly between 0.7 and 1.4 - mild, domain-sensible differences (e.g. bc_util and acc_open_past_24mths slightly higher for defaulters; tot_cur_bal, avg_cur_bal, mort_acc slightly lower), consistent with legitimate credit-risk signal rather than leakage. Nothing showed the multi-x or near-zero/near-infinite ratio pattern that would flag post-outcome contamination. Decision: clear all 34 as safe classifier features. Leakage audit (Step 4) is now complete.
+
+Positive control: ran the same check on columns known to be leaky (total_pymnt, total_rec_prncp, out_prncp, recoveries, collection_recovery_fee, last_pymnt_amnt) to validate the method. Ratios were far outside the safe 0.7-1.4 band: out_prncp 6.57x, last_pymnt_amnt 0.073x, total_rec_prncp 0.32x, and recoveries/collection_recovery_fee had target_0 pinned at exactly 0 (ratio undefined). Confirms the check reliably distinguishes leaky columns from mild-signal-but-safe ones - good reference calibration for future projects: ratios beyond roughly 0.5-2x, or one class pinned at a constant, are the red flag threshold, not mild 0.7-1.4 variation.
+
+**Step 5**: Train/val/test split
+Decision: random stratified split (on target), 70/15/15, for this initial classifier. Two-step split via sklearn's train_test_split (split off test first, then split remaining into train/val), stratify=target to preserve the 1:3.75 class ratio across all three sets.
+
+Future work (revisit once the simple model is working): time-based split by issue_d (train on earlier-issued loans, test on later-issued ones) - more realistic for eventual deployment since loans span 2007-2018 with different economic conditions (e.g. 2008 crash). Also flagged as future/complex-stage work alongside survival analysis, uplift modeling, and deployment: revisit splitting strategy, hardship/settlement features, and any other leakage-sensitive decisions made for simplicity now once those stages begin.
+
+Result: Train (964040, 71), Val (206580, 71), Test (206581, 71). Class balance held at 79.10%/20.90% across all three splits, matching the full clf_df ratio - stratification worked as intended.
+
+Preprocessing (Steps 1-5) is complete. Next: feature engineering (02_feature_engineering.ipynb) - revisit the payment_ratio/loan_ratio features already sketched in 01_eda.ipynb (currently reference df and a leaky column, last_pymt_amnt/total_rec_prncp, need rework against X_train instead).
+
 Lesson: missingness-driven review and leakage review are different passes - a column can be 0% missing and still leak the outcome. A full pass must cover every remaining column, not just ones that showed up from an earlier missing-values check.
 
 Next, we shall handle missing values for existing columns. And then we can feature engineer from them. 
