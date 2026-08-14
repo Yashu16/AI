@@ -147,11 +147,31 @@ Future work (revisit once the simple model is working): time-based split by issu
 
 Result: Train (964040, 71), Val (206580, 71), Test (206581, 71). Class balance held at 79.10%/20.90% across all three splits, matching the full clf_df ratio - stratification worked as intended.
 
-Preprocessing (Steps 1-5) is complete. Next: feature engineering (02_feature_engineering.ipynb) - revisit the payment_ratio/loan_ratio features already sketched in 01_eda.ipynb (currently reference df and a leaky column, last_pymt_amnt/total_rec_prncp, need rework against X_train instead).
+Preprocessing (Steps 1-5) is complete. Next: feature engineering (02_feat_engineer.ipynb) - revisit the payment_ratio/loan_ratio features already sketched in 01_eda.ipynb (currently reference df and a leaky column, last_pymt_amnt/total_rec_prncp, need rework against X_train instead).
+
+**Feature engineering scope clarification**: payment_ratio (last_pymt_amnt/installment) and loan_ratio (total_rec_prncp/loan_amnt) both need mid-loan payment history that doesn't exist at origination - the classifier predicts default risk using only what's known when the loan is issued (Bucket 4: credit profile, loan terms, borrower financials), so there's no "payment behavior so far" to feature-engineer from at this stage. Decision: for 02_feat_engineer.ipynb, build features from what's actually available in X_train (origination-time columns) instead. payment_ratio/loan_ratio-style features (using leaky columns like last_pymt_amnt, total_rec_prncp) are deferred to a future behavioral/collections-scoring model that operates mid-loan-life, not this initial classifier.
+
+**Initial feature set (5)**, all built from origination-time columns already cleared in the leakage audit:
+1. installment_to_income = installment / (annual_inc / 12) - loan payment as share of monthly income
+2. loan_to_income = loan_amnt / annual_inc - loan size relative to income
+3. credit_history_length = months between earliest_cr_line and issue_d (both need pd.to_datetime parsing first, currently str dtype)
+4. avail_credit_ratio = bc_open_to_buy / total_rev_hi_lim - revolving credit headroom relative to limit
+5. fico_avg = (fico_range_low + fico_range_high) / 2 - single combined FICO score
+
+Decision on scope: stick with these 5 for the first pass rather than pre-building more (sub_grade numeric encoding, revol_util x dti interaction, high_utilization_flag, active-account ratio, purpose grouping were considered). Train a baseline classifier first, then use feature importances/coefficients to decide what's actually worth adding - avoids over-engineering before seeing what the model needs. Revisit this list after the baseline classifier (03_classifier.ipynb) is trained.
+
+**Edge cases found after building the 5 features** (via .describe() on X_train):
+- avail_credit_ratio (bc_open_to_buy / total_rev_hi_lim): total_rev_hi_lim == 0 for 48,155 rows (real zeros in raw data, not an artifact of Step 3's zero-fill) - division produces inf, which poisons mean()/max() for the whole column and would break most non-tree models outright. Decision: clip.
+- installment_to_income, loan_to_income: a handful of rows have implausibly low annual_inc (as low as $20-$100), producing extreme ratios (up to 282x/820x) - not inf, but could dominate models sensitive to feature magnitude/scale. Decision: clip.
+- credit_history_length: long tail of very old earliest_cr_line dates (155 rows before 1960, 912 rows > 50 years) - smooth continuous tail, not a spike, likely a mix of genuine long-lived accounts and data-entry errors that can't be distinguished from the data alone. One row (earliest_cr_line Apr-1934) coincidentally hit exactly 999, colliding with the unrelated sentinel value used in Step 3 imputation - coincidence, not a real link, but worth noting as a landmine if these columns are ever compared directly.
+
+Decision: clip all three (rather than drop rows or leave as-is) - preserves every row's other features, treats the extreme tail as "very high/long" rather than needing to verify or fix each value. Clip bounds must be computed on X_train only (a learned statistic, e.g. a percentile) and the same bounds applied to X_val/X_test - this is the train-only-fit case flagged back in the Step 5 planning discussion.
+
+Bug caught during this fix: initially used pd.NA to replace inf in avail_credit_ratio, which silently cast the column to object dtype (not float64) even after fillna(0) - would have broken model training later since most classifiers need numeric dtypes. Fixed by using np.nan instead, which stays within float64. Lesson: always check .dtypes after a replace()/fillna() involving pd.NA, not just .describe() - object dtype can look fine in a numeric summary until you check.
+
+Result after fix: installment_to_income clipped to max 0.201, loan_to_income to max 0.5, credit_history_length to max 478 months (~40 years), bounds computed on X_train's 99th percentile. avail_credit_ratio: 48,155 rows with inf converted to NaN, then filled with 0 (no revolving limit = no headroom) - full 964,040 count, range 0-1, all float64. Feature engineering (02_feat_engineer.ipynb) is complete.
 
 Lesson: missingness-driven review and leakage review are different passes - a column can be 0% missing and still leak the outcome. A full pass must cover every remaining column, not just ones that showed up from an earlier missing-values check.
-
-Next, we shall handle missing values for existing columns. And then we can feature engineer from them. 
 
 **Feature engineering**
 Time to engineer new features from existing ones. 
