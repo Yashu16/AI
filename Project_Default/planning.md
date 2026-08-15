@@ -140,6 +140,8 @@ Result: ran the check. All 34 borderline columns showed target_1/target_0 ratios
 
 Positive control: ran the same check on columns known to be leaky (total_pymnt, total_rec_prncp, out_prncp, recoveries, collection_recovery_fee, last_pymnt_amnt) to validate the method. Ratios were far outside the safe 0.7-1.4 band: out_prncp 6.57x, last_pymnt_amnt 0.073x, total_rec_prncp 0.32x, and recoveries/collection_recovery_fee had target_0 pinned at exactly 0 (ratio undefined). Confirms the check reliably distinguishes leaky columns from mild-signal-but-safe ones - good reference calibration for future projects: ratios beyond roughly 0.5-2x, or one class pinned at a constant, are the red flag threshold, not mild 0.7-1.4 variation.
 
+Lesson: missingness-driven review and leakage review are different passes - a column can be 0% missing and still leak the outcome. A full pass must cover every remaining column, not just ones that showed up from an earlier missing-values check.
+
 **Step 5**: Train/val/test split
 Decision: random stratified split (on target), 70/15/15, for this initial classifier. Two-step split via sklearn's train_test_split (split off test first, then split remaining into train/val), stratify=target to preserve the 1:3.75 class ratio across all three sets.
 
@@ -170,8 +172,3 @@ Decision: clip all three (rather than drop rows or leave as-is) - preserves ever
 Bug caught during this fix: initially used pd.NA to replace inf in avail_credit_ratio, which silently cast the column to object dtype (not float64) even after fillna(0) - would have broken model training later since most classifiers need numeric dtypes. Fixed by using np.nan instead, which stays within float64. Lesson: always check .dtypes after a replace()/fillna() involving pd.NA, not just .describe() - object dtype can look fine in a numeric summary until you check.
 
 Result after fix: installment_to_income clipped to max 0.201, loan_to_income to max 0.5, credit_history_length to max 478 months (~40 years), bounds computed on X_train's 99th percentile. avail_credit_ratio: 48,155 rows with inf converted to NaN, then filled with 0 (no revolving limit = no headroom) - full 964,040 count, range 0-1, all float64. Feature engineering (02_feat_engineer.ipynb) is complete.
-
-Lesson: missingness-driven review and leakage review are different passes - a column can be 0% missing and still leak the outcome. A full pass must cover every remaining column, not just ones that showed up from an earlier missing-values check.
-
-**Feature engineering**
-Time to engineer new features from existing ones. 
