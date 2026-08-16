@@ -172,3 +172,13 @@ Decision: clip all three (rather than drop rows or leave as-is) - preserves ever
 Bug caught during this fix: initially used pd.NA to replace inf in avail_credit_ratio, which silently cast the column to object dtype (not float64) even after fillna(0) - would have broken model training later since most classifiers need numeric dtypes. Fixed by using np.nan instead, which stays within float64. Lesson: always check .dtypes after a replace()/fillna() involving pd.NA, not just .describe() - object dtype can look fine in a numeric summary until you check.
 
 Result after fix: installment_to_income clipped to max 0.201, loan_to_income to max 0.5, credit_history_length to max 478 months (~40 years), bounds computed on X_train's 99th percentile. avail_credit_ratio: 48,155 rows with inf converted to NaN, then filled with 0 (no revolving limit = no headroom) - full 964,040 count, range 0-1, all float64. Feature engineering (02_feat_engineer.ipynb) is complete.
+
+**03_classifier.ipynb - baseline model**
+Model: Logistic Regression, class_weight='balanced' (per earlier decision, 1:3.75 imbalance). Primary metric ROC-AUC (threshold-independent - deployment threshold for collections isn't decided yet), secondary F1.
+
+Preprocessing needed before training (X_train has 76 cols: 60 float64, 11 str, 4 int64 missing-flags, 1 int32 credit_history_length):
+- issue_d, earliest_cr_line: still present as raw date strings even though only used to derive credit_history_length in 02_feat_engineer.ipynb. Decision: drop both - their signal is already captured in credit_history_length, and as raw strings they'd one-hot encode into hundreds of near-useless sparse columns (one per unique year-month).
+- grade, sub_grade, emp_length: ordinal (known ranking - A better than G, 10+ years more established than <1 year). Decision: OrdinalEncoder, not one-hot - preserves ranking as a single numeric column, more efficient for a linear model than re-learning the order across many separate one-hot coefficients.
+- term, home_ownership, verification_status, purpose, addr_state, application_type: genuinely unordered categories. Decision: one-hot encode.
+- All numeric columns: StandardScaler (logistic regression's optimizer is scale-sensitive - a column like annual_inc in the tens of thousands would otherwise dominate the gradient vs a 0-1 ratio like dti).
+- All fit on X_train only, applied to X_val/X_test (same train-only-fit principle as Step 5 split and Step 6 feature clipping) - done via a single sklearn Pipeline + ColumnTransformer so this happens automatically and can't leak by accident.
