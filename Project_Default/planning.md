@@ -39,10 +39,10 @@ storage-intelligence/
 ## Where things stand
 
 - `01_eda.ipynb`: preprocessing complete (column drops, target/split creation, imputation, leakage audit, train/val/test split). See `notes/01_eda.md`.
-- `02_feat_engineer.ipynb`: complete (5 origination-time features, edge cases clipped/fixed). See `notes/02_feat_engineer.md`.
-- `03_classifier.ipynb`: baseline logistic regression trained and evaluated (ROC-AUC 0.7178, F1 0.4458). See `notes/03_classifier.md`.
+- `02_feat_engineer.ipynb`: complete, including a Round 2 test of the 5 deferred feature ideas below - all landed within noise-level of baseline. See `notes/02_feat_engineer.md`.
+- `03_classifier.ipynb`: baseline logistic regression + Random Forest comparison, two rounds of hyperparameter tuning done (see "Next up" plan below, now executed) - converged around ~0.72-0.723 ROC-AUC with diminishing returns. See `notes/03_classifier.md`.
 
-## Current plan
+## Original plan for 03_classifier.ipynb (executed)
 
 **Next up:** train a Random Forest (or XGBoost) on the same train/val split as the logistic regression baseline, for a direct ROC-AUC/F1 comparison. Trees should be naturally more robust to two issues found in the linear model (sentinel-999 scaling distortion, `addr_state` one-hot sparsity/small-sample inflation) without extra preprocessing - this tells us whether those issues actually cost the linear model anything, and whether tree-based is worth pursuing further for this classifier.
 
@@ -51,6 +51,19 @@ storage-intelligence/
 - Consider addressing `addr_state` sparsity (regional grouping, or regularized/target encoding) if it's shown to hurt performance.
 - Revisit the deferred feature ideas (sub_grade numeric encoding as its own feature, `revol_util` x `dti` interaction, high-utilization flag, active-account ratio, purpose grouping) guided by feature importances from whichever model wins.
 - Once a baseline classifier is solid, move to `04_survival_analysis.ipynb`.
+
+**Outcome:** Random Forest tied the logistic regression baseline. Two rounds of hyperparameter tuning converged around 0.72-0.723 ROC-AUC with diminishing returns. All 5 deferred features were tested (in `02_feat_engineer.ipynb` Round 2) and also landed within noise-level of baseline. Decision threshold tuning and `addr_state` sparsity were not pursued - see "Current plan" below for why.
+
+## Current plan
+
+Both hyperparameter tuning and feature engineering plateaued at ~0.72 ROC-AUC independently - two separate investigations pointing the same direction. This looks like a genuine ceiling for origination-time-only prediction with this feature set, not an artifact of under-tuning or under-engineering.
+
+**Next up:** move to `04_survival_analysis.ipynb`. The plateau suggests the next real gains come from mid-loan-life/behavioral data (hardship/settlement events, time-to-default), which is exactly what survival analysis brings in - not from further tuning or feature tweaks on the initial classifier.
+
+**Parked for later** (not urgent, revisit only if it becomes relevant):
+- Decision threshold tuning (ROC/precision-recall curve) instead of the default 0.5 - relevant once closer to an actual collections deployment decision.
+- `addr_state` one-hot sparsity/small-sample coefficient inflation (flagged in the logistic regression) - never confirmed to actually hurt performance, so not addressed.
+- A more rigorous hyperparameter search (`HalvingRandomSearchCV`, Bayesian optimization) if tuning ever becomes worth revisiting - the current search was small (12 samples of 100+ combinations each round) and diminishing but not exhaustively proven to have hit a hard ceiling.
 
 ## Longer-term / deferred work
 
